@@ -66,8 +66,8 @@ public class EstudianteService {
     public List<Estudiante> buscarPorProvincia(String provincia, String genero){
         if (genero != null && !genero.isEmpty()) {
              System.out.println("Listado de provincia:xxxxxxx " );
-            return this.estudianteRepository.find("provinciaa = ?1 and genero = ?2", provincia, genero).list();
+            return this.estudianteRepository.find("provincia = ?1 and genero = ?2", provincia, genero).list();
         }
-        return this.estudianteRepository.find("provinciaa", provincia).list();
+        return this.estudianteRepository.find("provincia", provincia).list();
     }
 }
