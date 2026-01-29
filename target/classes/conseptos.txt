@@ -1,0 +1,15 @@
+QUERY  o requestparam : están asociados a filtros 
+SOLO PARA FILTROS USAR QUERY PARAMS 
+
+MODELO DE MADURES DE APIS(modelo de madurez de richardson)
+existe el modelo de madures de richarson que lo q busca mejorar en la cosntruccion de apis
+permite clasificar la madures de una api rest
+existe cuatro niveles
+0.- nivel cero no tiene ninguna madures trabaje con el protocolo/http/https
+1.- maneje todo como un recurso y que esas url deben ser autodescriptivas(https://localhost:8086/matricula/api/v1.0/estudiantes)
+v1.0:numero de la versión 1.1.2
+api: debe ser nombrado para lo que es creado
+estudiantes/son los recursos
+se chocan cuando hay una misma url y un mismo vervo
+
+

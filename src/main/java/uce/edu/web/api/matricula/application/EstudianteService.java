@@ -1,73 +1,92 @@
-package uce.edu.web.api.matricula.application;
+package materia.application;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
-import uce.edu.web.api.matricula.domain.Estudiante;
-import uce.edu.web.api.matricula.infraestrcture.EstudianteRepository;
+import materia.application.representation.EstudianteRepresentation;
+import materia.domain.Estudiante;
+import materia.infraestructure.EstudianteRepository;
 
 @ApplicationScoped
 public class EstudianteService {
+
     @Inject
-    public EstudianteRepository estudianteRepository;
-    public List<Estudiante>listarTodos(){
-         System.out.println("Listado de estudiantes:xxxxxxx " );
-       return this.estudianteRepository.listAll();
-      
+    private EstudianteRepository estudianteRepository;
 
-    }
-
-    @Transactional
-    public void saveEstudiante(Estudiante estudiante){
-        estudianteRepository.persist(estudiante);
-    }
-    public Estudiante consultarEstudiante(Integer id){
-        return this.estudianteRepository.findById(id.longValue());
-    }
-    // actualizar estudiante
-    @Transactional
-    public void actualizarEstudiante(Integer id,Estudiante estudiante){
-        Estudiante estudianteActual = this.estudianteRepository.findById(id.longValue());
-        if(estudianteActual != null){
-            estudianteActual.setNombre(estudiante.getNombre());
-            estudianteActual.setApellido(estudiante.getApellido());
-            estudianteActual.setFechaNacimiento(estudiante.getFechaNacimiento());
+    public List<EstudianteRepresentation> listarTodos() {
+        List<EstudianteRepresentation> list = new ArrayList<>();
+        for (Estudiante estu : estudianteRepository.listAll()) {
+            list.add(mapperToEr(estu));
         }
-       
-    }
-    // actualizacion parcial
-    @Transactional
-    public void actualizarParcialEstudiante(Integer id,Estudiante estudiante){
-        Estudiante estudianteActual = this.estudianteRepository.findById(id.longValue());
-        if(estudianteActual != null){
-            if(estudiante.getNombre() != null){
-                estudianteActual.setNombre(estudiante.getNombre());
-            }
-            if(estudiante.getApellido() != null){
-                estudianteActual.setApellido(estudiante.getApellido());
-            }
-            if(estudiante.getFechaNacimiento() != null){
-                estudianteActual.setFechaNacimiento(estudiante.getFechaNacimiento());
-            }
-        }
-    }
-    // eliminar estudiante
-    @Transactional
-    public void eliminarEstudiante(Integer id){
-        Estudiante estudianteActual = this.estudianteRepository.findById(id.longValue());
-        if(estudianteActual != null){
-            this.estudianteRepository.delete(estudianteActual);
-        }
+        return list;
     }
 
-    // consultar por provincia y genero
-    public List<Estudiante> buscarPorProvincia(String provincia, String genero){
-        if (genero != null && !genero.isEmpty()) {
-             System.out.println("Listado de provincia:xxxxxxx " );
-            return this.estudianteRepository.find("provincia = ?1 and genero = ?2", provincia, genero).list();
-        }
-        return this.estudianteRepository.find("provincia", provincia).list();
+    public EstudianteRepresentation consultarPorId(Integer id) {
+        Estudiante est = estudianteRepository.findById(id.longValue());
+        if (est == null) return null;
+        return mapperToEr(est);
+    }
+
+    @Transactional
+    public void crear(EstudianteRepresentation estuR) {
+        estudianteRepository.persist(mapperToEstudiante(estuR));
+    }
+
+    @Transactional
+    public EstudianteRepresentation actualizar(Integer id, EstudianteRepresentation estuR) {
+        Estudiante estu = estudianteRepository.findById(id.longValue());
+        if (estu == null) return null;
+        estu.setNombre(estuR.getNombre());
+        estu.setApellido(estuR.getApellido());
+        estu.setFechaNacimiento(estuR.getFechaNacimiento());
+        estu.setProvincia(estuR.getProvincia());
+        estu.genero = estuR.getGenero();
+        return mapperToEr(estu);
+    }
+
+    @Transactional
+    public void actualizarParcial(Integer id, EstudianteRepresentation estuR) {
+        Estudiante estu = estudianteRepository.findById(id.longValue());
+        if (estu == null) return;
+        if (estuR.getNombre() != null) estu.setNombre(estuR.getNombre());
+        if (estuR.getApellido() != null) estu.setApellido(estuR.getApellido());
+        if (estuR.getFechaNacimiento() != null) estu.setFechaNacimiento(estuR.getFechaNacimiento());
+        if (estuR.getProvincia() != null) estu.setProvincia(estuR.getProvincia());
+        if (estuR.getGenero() != null) estu.genero = estuR.getGenero();
+    }
+
+    @Transactional
+    public boolean eliminar(Integer id) {
+        return estudianteRepository.deleteById(id.longValue());
+    }
+
+    public List<Estudiante> buscarPorProvincia(String provincia, String genero) {
+        return estudianteRepository.find("provincia = ?1 and genero = ?2", provincia, genero).list();
+    }
+
+    // Mapper privado, solo usado dentro del Service
+    private EstudianteRepresentation mapperToEr(Estudiante estu) {
+        EstudianteRepresentation estuR = new EstudianteRepresentation();
+        estuR.setId(estu.getId());
+        estuR.setNombre(estu.getNombre());
+        estuR.setApellido(estu.getApellido());
+        estuR.setFechaNacimiento(estu.getFechaNacimiento());
+        estuR.setProvincia(estu.getProvincia());
+        estuR.setGenero(estu.genero);
+        return estuR;
+    }
+
+    private Estudiante mapperToEstudiante(EstudianteRepresentation estuR) {
+        Estudiante estu = new Estudiante();
+        estu.setId(estuR.getId());
+        estu.setNombre(estuR.getNombre());
+        estu.setApellido(estuR.getApellido());
+        estu.setFechaNacimiento(estuR.getFechaNacimiento());
+        estu.setProvincia(estuR.getProvincia());
+        estu.genero = estuR.getGenero();
+        return estu;
     }
 }
