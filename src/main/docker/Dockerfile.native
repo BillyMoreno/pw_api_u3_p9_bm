@@ -7,11 +7,11 @@
 #
 # Then, build the image with:
 #
-# docker build -f src/main/docker/Dockerfile.native -t quarkus/uce.edu.web.p9.je .
+# docker build -f src/main/docker/Dockerfile.native -t quarkus/pw_api_u3_p9_db .
 #
 # Then run the container using:
 #
-# docker run -i --rm -p 8080:8080 quarkus/uce.edu.web.p9.je
+# docker run -i --rm -p 8080:8080 quarkus/pw_api_u3_p9_db
 #
 # The ` registry.access.redhat.com/ubi9/ubi-minimal:9.7` base image is based on UBI 9.
 # To use UBI 8, switch to `quay.io/ubi8/ubi-minimal:8.10`.

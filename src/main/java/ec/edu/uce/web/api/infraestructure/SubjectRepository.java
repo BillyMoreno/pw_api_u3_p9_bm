@@ -6,5 +6,5 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 @ApplicationScoped
 public class SubjectRepository implements PanacheRepository<Subject> {
-    // Básico - hereda todo de PanacheRepository
+
 }

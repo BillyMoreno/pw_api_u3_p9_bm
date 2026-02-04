@@ -1,9 +1,6 @@
 package ec.edu.uce.web.api.application;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import ec.edu.uce.web.api.domain.Subject;
 import ec.edu.uce.web.api.infraestructure.SubjectRepository;
@@ -11,103 +8,158 @@ import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.NotFoundException;
 
 @ApplicationScoped
 public class SubjectService {
-    
     @Inject
     SubjectRepository subjectRepository;
-    
-    // 1. Obtener todas las materias
+
+    @WithTransaction
     public Uni<List<Subject>> findAll() {
         return subjectRepository.listAll();
     }
-    
-    // 2. Obtener materia por ID
+
     public Uni<Subject> findById(Long id) {
-        return subjectRepository.findById(id);
+        return subjectRepository.findById(id)
+                .onItem().ifNull().failWith(() -> new NotFoundException("Materia no encontrada con ID: " + id));
     }
-    
-    // 3. Crear nueva materia
+
     @WithTransaction
     public Uni<Subject> save(Subject subject) {
+        validateSubjectData(subject);
         return subjectRepository.persist(subject);
     }
-    
-    // 4. Actualizar materia
+
+    @WithTransaction
+    public Uni<List<Subject>> saveAll(List<Subject> subjects) {
+        // Validar que la lista no esté vacía
+        if (subjects == null || subjects.isEmpty()) {
+            throw new BadRequestException("La lista de materias es requerida y no puede estar vacía");
+        }
+
+        // Validar cada materia individualmente
+        for (Subject subject : subjects) {
+            validateSubjectData(subject);
+        }
+
+        // Persistir todas las materias de forma transaccional
+        return subjectRepository.persist(subjects)
+                .replaceWith(subjects);
+    }
+
     @WithTransaction
     public Uni<Subject> update(Long id, Subject subject) {
+        validateSubjectData(subject);
+
         return subjectRepository.findById(id)
-            .onItem().transformToUni(existing -> {
-                if (existing == null) {
-                    throw new jakarta.ws.rs.NotFoundException("Materia no encontrada");
-                }
-                existing.code = subject.code;
-                existing.name = subject.name;
-                existing.credits = subject.credits;
-                existing.description = subject.description;
-                existing.isActive = subject.isActive;
-                return subjectRepository.persist(existing);
-            });
+                .onItem().transform(existing -> {
+                    if (existing == null) {
+                        throw new NotFoundException("Materia no encontrada con ID: " + id);
+                    }
+                    // Actualizar todos los campos
+                    existing.name = subject.name;
+                    existing.code = subject.code;
+                    existing.description = subject.description;
+                    existing.credits = subject.credits;
+                    existing.semester = subject.semester;
+                    existing.teacher = subject.teacher;
+                    existing.classroom = subject.classroom;
+                    return existing;
+                })
+                .chain(subjectRepository::persistAndFlush);
     }
-    
-    // 5. Eliminar materia
+
     @WithTransaction
-    public Uni<Boolean> delete(Long id) {
-        return subjectRepository.deleteById(id);
-    }
-    
-    // 6. Inscribir estudiante (MUY SIMPLE)
-    @WithTransaction
-    public Uni<String> enrollStudent(Long subjectId, Long studentId) {
-        return subjectRepository.findById(subjectId)
-            .onItem().transform(subject -> {
-                if (subject == null) {
-                    return "❌ Materia no encontrada";
-                }
-                // Solo mensaje - la inscripción real sería con SQL
-                return "✅ Inscripción simulada - Use SQL directo para implementación real";
-            });
-    }
-    
-    // 7. Estudiantes inscritos (MUY SIMPLE - sin relación)
-    public Uni<List<Map<String, Object>>> getEnrolledStudents(Long subjectId) {
-        return Uni.createFrom().item(() -> {
-            List<Map<String, Object>> estudiantes = new ArrayList<>();
-            
-            // Datos de ejemplo (simulado)
-            Map<String, Object> e1 = new HashMap<>();
-            e1.put("id", 1);
-            e1.put("name", "Juan Pérez");
-            e1.put("email", "juan@email.com");
-            estudiantes.add(e1);
-            
-            Map<String, Object> e2 = new HashMap<>();
-            e2.put("id", 2);
-            e2.put("name", "María Gómez");
-            e2.put("email", "maria@email.com");
-            estudiantes.add(e2);
-            
-            return estudiantes;
-        });
-    }
-    
-    // 8. Información simple
-    public Uni<Map<String, Object>> getSubjectInfo(Long id) {
+    public Uni<Void> partialUpdate(Long id, Subject subject) {
         return subjectRepository.findById(id)
-            .onItem().transform(subject -> {
-                Map<String, Object> info = new HashMap<>();
-                if (subject != null) {
-                    info.put("id", subject.id);
-                    info.put("code", subject.code);
-                    info.put("name", subject.name);
-                    info.put("credits", subject.credits);
-                    info.put("isActive", subject.isActive);
-                    info.put("message", "✅ Materia encontrada");
-                } else {
-                    info.put("error", "❌ Materia no encontrada");
-                }
-                return info;
-            });
+                .onItem().transform(existing -> {
+                    if (existing == null) {
+                        throw new NotFoundException("Materia no encontrada con ID: " + id);
+                    }
+                    // Actualizar solo campos no nulos
+                    if (subject.name != null) {
+                        existing.name = subject.name;
+                    }
+                    if (subject.code != null) {
+                        existing.code = subject.code;
+                    }
+                    if (subject.description != null) {
+                        existing.description = subject.description;
+                    }
+                    if (subject.credits != null) {
+                        existing.credits = subject.credits;
+                    }
+                    if (subject.semester != null) {
+                        existing.semester = subject.semester;
+                    }
+                    if (subject.teacher != null) {
+                        existing.teacher = subject.teacher;
+                    }
+                    if (subject.classroom != null) {
+                        existing.classroom = subject.classroom;
+                    }
+                    return existing;
+                })
+                .chain(subjectRepository::persistAndFlush)
+                .replaceWithVoid();
+    }
+
+    public Uni<List<Subject>> findBySemester(Integer semester) {
+        // Validación de rango de semestre
+        if (semester < 1 || semester > 10) {
+            throw new BadRequestException("Semestre debe estar entre 1 y 10");
+        }
+        return subjectRepository.find("semester", semester).list()
+                .onItem().transform(subjects -> {
+                    if (subjects.isEmpty()) {
+                        throw new NotFoundException("No se encontraron materias para el semestre " + semester);
+                    }
+                    return subjects;
+                });
+    }
+
+    public Uni<List<Subject>> findByClassroom(String classroom) {
+        // Validación de aula no vacía
+        if (classroom == null || classroom.trim().isEmpty()) {
+            throw new BadRequestException("El parámetro aula es requerido y no puede estar vacío");
+        }
+        return subjectRepository.find("classroom", classroom).list()
+                .onItem().transform(subjects -> {
+                    if (subjects.isEmpty()) {
+                        throw new NotFoundException("No se encontraron materias en el aula '" + classroom + "'");
+                    }
+                    return subjects;
+                });
+    }
+
+    @WithTransaction
+    public Uni<Void> delete(Long id) {
+        return subjectRepository.findById(id)
+                .onItem().ifNull().failWith(() -> new NotFoundException("Materia no encontrada con ID: " + id))
+                .chain(subject -> subjectRepository.delete(subject))
+                .replaceWithVoid();
+    }
+
+    /**
+     * Método privado para validar datos de negocio de Subject
+     */
+    private void validateSubjectData(Subject subject) {
+        if (subject.name == null || subject.name.trim().isEmpty()) {
+            throw new BadRequestException("El nombre es requerido y no puede estar vacío");
+        }
+
+        if (subject.code == null || subject.code.trim().isEmpty()) {
+            throw new BadRequestException("El código es requerido y no puede estar vacío");
+        }
+
+        if (subject.credits != null && subject.credits < 0) {
+            throw new BadRequestException("Los créditos no pueden ser negativos");
+        }
+
+        if (subject.semester != null && (subject.semester < 1 || subject.semester > 10)) {
+            throw new BadRequestException("El semestre debe estar entre 1 y 10");
+        }
     }
 }
